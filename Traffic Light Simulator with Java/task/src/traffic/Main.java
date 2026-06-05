@@ -1,5 +1,6 @@
 package traffic;
 
+import java.util.ArrayDeque;
 import java.util.Scanner;
 
 /** Entry point for the Traffic Management System console application. */
@@ -7,6 +8,7 @@ public class Main {
 
   private static volatile boolean systemState = false;
   private static volatile int seconds = 0;
+  private static final ArrayDeque<String> queue = new ArrayDeque<>();
 
   /** Prompts for validated road count and interval, spawns QueueThread, then runs the looped menu. */
   public static void main(String[] args) {
@@ -40,11 +42,26 @@ public class Main {
       String option = scanner.nextLine().trim();
       switch (option) {
         case "1":
-          System.out.println("Road added");
+          System.out.println("Input road name:");
+          String roadName = scanner.nextLine().trim();
+          synchronized (queue) {
+            if (queue.size() >= numberOfRoads) {
+              System.out.println("Queue is full");
+            } else {
+              queue.add(roadName);
+              System.out.println(roadName + " Added!");
+            }
+          }
           scanner.nextLine();
           break;
         case "2":
-          System.out.println("Road deleted");
+          synchronized (queue) {
+            if (queue.isEmpty()) {
+              System.out.println("Queue is empty");
+            } else {
+              System.out.println(queue.poll() + " deleted!");
+            }
+          }
           scanner.nextLine();
           break;
         case "3":
@@ -63,11 +80,16 @@ public class Main {
     }
   }
 
-  /** Prints the four-line system status block with elapsed seconds, road count, and interval. */
+  /** Prints elapsed seconds, settings, all queued road names (front to rear), and the Enter prompt. */
   private static void printSystemInfo(int s, int roads, int interval) {
     System.out.println("! " + s + "s. have passed since system startup !");
     System.out.println("! Number of roads: " + roads + " !");
     System.out.println("! Interval: " + interval + " !");
+    synchronized (queue) {
+      for (String road : queue) {
+        System.out.println(road);
+      }
+    }
     System.out.println("! Press \"Enter\" to open menu !");
   }
 
