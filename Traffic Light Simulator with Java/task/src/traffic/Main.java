@@ -1,6 +1,8 @@
 package traffic;
 
 import java.util.ArrayDeque;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Scanner;
 
 /** Entry point for the Traffic Management System console application. */
@@ -8,7 +10,18 @@ public class Main {
 
   private static volatile boolean systemState = false;
   private static volatile int seconds = 0;
-  private static final ArrayDeque<String> queue = new ArrayDeque<>();
+  private static final ArrayDeque<Road> queue = new ArrayDeque<>();
+  private static final ArrayDeque<Road> rotation = new ArrayDeque<>();
+  private static int timer = 0;
+
+  /** A road tracked by name and identity, so the same name can occupy distinct queue slots. */
+  private static class Road {
+    final String name;
+
+    Road(String name) {
+      this.name = name;
+    }
+  }
 
   /** Prompts for validated road count and interval, spawns QueueThread, then runs the looped menu. */
   public static void main(String[] args) {
@@ -26,8 +39,17 @@ public class Main {
         try {
           Thread.sleep(1000);
           seconds++;
-          if (systemState) {
-            printSystemInfo(seconds, numberOfRoads, interval);
+          synchronized (queue) {
+            if (systemState) {
+              printSystemInfo(seconds, numberOfRoads, interval);
+            }
+            if (!rotation.isEmpty()) {
+              timer--;
+              if (timer == 0) {
+                rotation.addLast(rotation.pollFirst());
+                timer = interval;
+              }
+            }
           }
         } catch (InterruptedException e) {
           Thread.currentThread().interrupt();
@@ -48,7 +70,12 @@ public class Main {
             if (queue.size() >= numberOfRoads) {
               System.out.println("Queue is full");
             } else {
-              queue.add(roadName);
+              Road road = new Road(roadName);
+              queue.addLast(road);
+              rotation.addLast(road);
+              if (rotation.size() == 1) {
+                timer = interval;
+              }
               System.out.println(roadName + " Added!");
             }
           }
@@ -59,7 +86,13 @@ public class Main {
             if (queue.isEmpty()) {
               System.out.println("Queue is empty");
             } else {
-              System.out.println(queue.poll() + " deleted!");
+              Road removed = queue.pollFirst();
+              boolean wasOpen = rotation.peekFirst() == removed;
+              rotation.remove(removed);
+              if (wasOpen && !rotation.isEmpty()) {
+                timer = interval;
+              }
+              System.out.println(removed.name + " deleted!");
             }
           }
           scanner.nextLine();
@@ -80,15 +113,18 @@ public class Main {
     }
   }
 
-  /** Prints elapsed seconds, settings, all queued road names (front to rear), and the Enter prompt. */
+  /** Prints elapsed seconds, settings, each road's open/closed state and countdown, and the Enter prompt; caller must hold the queue's monitor. */
   private static void printSystemInfo(int s, int roads, int interval) {
     System.out.println("! " + s + "s. have passed since system startup !");
     System.out.println("! Number of roads: " + roads + " !");
     System.out.println("! Interval: " + interval + " !");
-    synchronized (queue) {
-      for (String road : queue) {
-        System.out.println(road);
-      }
+    List<Road> order = new ArrayList<>(rotation);
+    for (Road road : queue) {
+      int position = order.indexOf(road);
+      boolean open = position == 0;
+      int remaining = open ? timer : timer + (position - 1) * interval;
+      System.out.println("Road \"" + road.name + "\" will be "
+              + (open ? "open" : "closed") + " for " + remaining + "s.");
     }
     System.out.println("! Press \"Enter\" to open menu !");
   }

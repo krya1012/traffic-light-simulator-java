@@ -27,7 +27,8 @@ There is no `run` task configured; the program is exercised exclusively through 
 Traffic Light Simulator with Java/   ← lesson directory (Hyperskill)
   task/
     src/traffic/Main.java            ← sole production source file
-    test/TrafficLightTest.java       ← Hyperskill test for the current stage
+    test/GlobalTests.java            ← actual stage-gated test runner (see Test Framework)
+    test/SystemOutput.java           ← parses/validates "System" view output (time, settings, road lines)
   Open the control panel/task.html   ← Stage 1 requirements
   Set up the traffic light/task.html ← Stage 2 requirements
   Oops, wrong button/task.html       ← Stage 3 requirements
@@ -49,7 +50,7 @@ Tests use the Hyperskill `hs-test` library (`com.github.hyperskill:hs-test`). Ke
 - `TestedProgram` — launches `Main.main()` in a subprocess; `pr.start()` gets stdout, `pr.execute(input)` sends stdin and returns the next output block.
 - `CheckResult.correct()` / `CheckResult.wrong(message)` — pass/fail a test case.
 
-Each stage replaces `TrafficLightTest.java` with new assertions; `Main.java` must be updated to satisfy them.
+`GlobalTests.java` is the single test runner that covers every stage at once: a `STAGE` field (currently `5`) selects which assertions are active, and each `@DynamicTest` method calls `ForStages(new int[]{...})`, which throws `TestPassed` (skips the test) when `STAGE` isn't in the list. **To advance to the next stage, bump `STAGE` in `GlobalTests.java`** — this is what activates the new assertions; `Main.java` must then be updated to satisfy them. `SystemOutput.parseStringInfo(...)` is a shared helper that parses the "System" view block (elapsed seconds, road count, interval, road lines) and is reused across the stage-4/5/6 assertions.
 
 ## Stage Summary
 
@@ -65,7 +66,7 @@ Each stage replaces `TrafficLightTest.java` with new assertions; `Main.java` mus
 ## Workflow (per stage)
 
 1. Read `task.html` (strip HTML) to understand requirements.
-2. Read `test/TrafficLightTest.java` to see exact assertions and input sequences.
+2. Bump `STAGE` in `test/GlobalTests.java` to the new stage number, then read the `@DynamicTest` methods gated by that number (via `ForStages`) to see exact assertions and input sequences.
 3. Read `src/traffic/Main.java` before editing.
 4. Implement only what the current stage requires.
 5. Add one-sentence JavaDoc to every new or modified public class and method.
