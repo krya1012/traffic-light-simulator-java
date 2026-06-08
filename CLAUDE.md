@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Hyperskill project — a console-based Traffic Light Simulator built in Java. Implements a multi-threaded road management system with a circular queue, progressing through 5 stages from a simple menu to a full animated traffic light.
+Hyperskill project — a console-based Traffic Light Simulator built in Java. Implements a multi-threaded road management system with a circular queue, progressing through 6 stages from a simple menu to a full animated traffic light. All 6 stages are implemented and passing (`STAGE = 6` in `GlobalTests.java`); the project is feature-complete.
 
 ## Commands
 
@@ -50,7 +50,7 @@ Tests use the Hyperskill `hs-test` library (`com.github.hyperskill:hs-test`). Ke
 - `TestedProgram` — launches `Main.main()` in a subprocess; `pr.start()` gets stdout, `pr.execute(input)` sends stdin and returns the next output block.
 - `CheckResult.correct()` / `CheckResult.wrong(message)` — pass/fail a test case.
 
-`GlobalTests.java` is the single test runner that covers every stage at once: a `STAGE` field (currently `5`) selects which assertions are active, and each `@DynamicTest` method calls `ForStages(new int[]{...})`, which throws `TestPassed` (skips the test) when `STAGE` isn't in the list. **To advance to the next stage, bump `STAGE` in `GlobalTests.java`** — this is what activates the new assertions; `Main.java` must then be updated to satisfy them. `SystemOutput.parseStringInfo(...)` is a shared helper that parses the "System" view block (elapsed seconds, road count, interval, road lines) and is reused across the stage-4/5/6 assertions.
+`GlobalTests.java` is the single test runner that covers every stage at once: a `STAGE` field (currently `6`, the final stage) selects which assertions are active, and each `@DynamicTest` method calls `ForStages(new int[]{...})`, which throws `TestPassed` (skips the test) when `STAGE` isn't in the list. **To advance to the next stage, bump `STAGE` in `GlobalTests.java`** — this is what activates the new assertions; `Main.java` must then be updated to satisfy them. `SystemOutput.parseStringInfo(...)` is a shared helper that parses the "System" view block (elapsed seconds, road count, interval, road lines) and is reused across the stage-4/5/6 assertions.
 
 ## Stage Summary
 
@@ -62,6 +62,8 @@ Tests use the Hyperskill `hs-test` library (`com.github.hyperskill:hs-test`). Ke
 | 4 – Like a clockwork | Spawn `QueueThread` (named `"QueueThread"`); it increments elapsed time every 1 s and prints system info when in System state; option 3 switches to System state; Enter returns to Menu |
 | 5 – Over and over again | Implement circular queue (capacity = numberOfRoads) in `QueueThread`; options 1/2 add/delete roads; System view lists all roads |
 | 6 – Red, yellow, green | Each road displays open/closed state and countdown; front of queue is open; timing recalculates on add/delete; ANSI colour optional |
+
+All six stages above are implemented in `Main.java` and pass `GlobalTests`. Note: the `task.html` prose for Stage 6 is internally inconsistent about how rotation/deletion interact — the `finalActionsSimple`/`finalActionsAdvanced` data in `GlobalTests.java` is the authoritative spec. The validated model: display order is fixed insertion order (FIFO add/delete) and never reorders; a *separate* internal rotation sequence (starting in the same order) determines which road is open — its front is open, and on timer expiry it moves to the rotation's rear while the next road opens with a fresh full-interval timer; deleting the currently-open road immediately promotes the new rotation front to open with a reset timer. See commit `753137e`.
 
 ## Workflow (per stage)
 
